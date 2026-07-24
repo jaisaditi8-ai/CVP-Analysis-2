@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CVP Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --ink: #0E1520;
+    --panel: #161F2C;
+    --hairline: #2B3646;
+    --text: #EDEFF3;
+    --muted: #8A93A3;
+    --mint: #4FD1AE;
+    --amber: #E8A33D;
+    --rose: #E8607A;
+    --mono: 'IBM Plex Mono', monospace;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--body);
+    padding: 28px;
+  }
+  .cvp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 20px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--hairline);
+    padding-bottom: 18px;
+  }
+  .cvp-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mint);
+    margin-bottom: 6px;
+  }
+  .cvp-title-input {
+    font-family: var(--display);
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--hairline);
+    padding: 2px 0;
+    width: 100%;
+    max-width: 560px;
+  }
+  .cvp-title-input:focus { outline: none; border-bottom-color: var(--mint); }
+  .cvp-header-note {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    text-align: right;
+  }
+  .cvp-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 22px;
+  }
+  @media (max-width: 860px) {
+    .cvp-layout { grid-template-columns: 1fr; }
+  }
+  .cvp-panel {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .cvp-panel-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .cvp-field { display: block; margin-bottom: 14px; }
+  .cvp-field-label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .cvp-field-input {
+    display: flex;
+    align-items: center;
+    background: var(--ink);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    padding: 7px 10px;
+  }
+  .cvp-field-input:focus-within { border-color: var(--mint); }
+  .cvp-field-input input {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    width: 100%;
+    outline: none;
+  }
+  .cvp-prefix, .cvp-suffix {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .cvp-prefix { margin-right: 4px; }
+  .cvp-suffix { margin-left: 4px; }
+  .cvp-main { display: flex; flex-direction: column; gap: 20px; }
+  .cvp-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .cvp-metric {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .cvp-metric-label { font-size: 11.5px; color: var(--muted); margin-bottom: 6px; }
+  .cvp-metric-value { font-family: var(--mono); font-size: 20px; font-weight: 600; }
+  .cvp-metric-sub { font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  .tone-mint .cvp-metric-value { color: var(--mint); }
+  .tone-amber .cvp-metric-value { color: var(--amber); }
+  .tone-rose .cvp-metric-value { color: var(--rose); }
+  .cvp-runway-label {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 11.5px; color: var(--muted); margin-bottom: 8px;
+  }
+  .cvp-runway {
+    position: relative; height: 34px; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--hairline);
+  }
+  .cvp-runway-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; }
+  .cvp-runway-marker-label {
+    position: absolute; top: -20px; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 10.5px; color: var(--text); white-space: nowrap;
+  }
+  .chart-wrap { position: relative; height: 340px; }
+  .cvp-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; }
+  .cvp-table th {
+    text-align: right; font-weight: 500; color: var(--muted); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .cvp-table th:first-child, .cvp-table td:first-child { text-align: left; }
+  .cvp-table td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--hairline); }
+  .cvp-table tr:last-child td { border-bottom: none; }
+  .cvp-table tr.base td { color: var(--mint); }
+  .delta-up { color: var(--rose); }
+  .delta-down { color: var(--mint); }
+  .runway-note { margin-top: 26px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="cvp-header">
+  <div>
+    <div class="cvp-eyebrow">CVP Model · Break-even &amp; Margin Dashboard</div>
+    <input class="cvp-title-input" id="companyName" value="Aurora Roastery — Single-Origin Coffee Bags" />
+  </div>
+  <div class="cvp-header-note" id="headerNote"></div>
+</div>
+
+<div class="cvp-layout">
+  <div class="cvp-panel">
+    <div class="cvp-panel-title">Inputs</div>
+
+    <label class="cvp-field">
+      <span class="cvp-field-label">Selling price per unit</span>
+      <div class="cvp-field-input"><span class="cvp-prefix">$</span><input type="number" id="price" value="50" step="0.5" min="0" /></div>
+    </label>
+    <label class="cvp-field">
+      <span class="cvp-field-label">Variable cost per unit</span>
+      <div class="cvp-field-input"><span class="cvp-prefix">$</span><input type="number" id="vc" value="30" step="0.5" min="0" /></div>
+    </label>
+    <label class="cvp-field">
+      <span class="cvp-field-label">Fixed costs (total)</span>
+      <div class="cvp-field-input"><span class="cvp-prefix">$</span><input type="number" id="fixed" value="100000" step="500" min="0" /></div>
+    </label>
+    <label class="cvp-field">
+      <span class="cvp-field-label">Expected sales volume</span>
+      <div class="cvp-field-input"><input type="number" id="volume" value="8000" step="50" min="0" /><span class="cvp-suffix">units</span></div>
+    </label>
+    <label class="cvp-field">
+      <span class="cvp-field-label">Tax rate</span>
+      <div class="cvp-field-input"><input type="number" id="taxRate" value="25" step="1" min="0" max="99" /><span class="cvp-suffix">%</span></div>
+    </label>
+    <label class="cvp-field">
+      <span class="cvp-field-label">Target profit (after tax)</span>
+      <div class="cvp-field-input"><span class="cvp-prefix">$</span><input type="number" id="targetProfit" value="50000" step="500" min="0" /></div>
+    </label>
+    <label class="cvp-field">
+      <span class="cvp-field-label">Chart volume range (max units)</span>
+      <div class="cvp-field-input"><input type="number" id="maxUnits" value="15000" step="500" min="0" /><span class="cvp-suffix">units</span></div>
+    </label>
+  </div>
+
+  <div class="cvp-main">
+    <div class="cvp-metrics" id="metrics"></div>
+
+    <div class="cvp-panel">
+      <div class="cvp-panel-title">Volume Runway — expected volume vs. break-even</div>
+      <div class="cvp-runway-label">
+        <span>0 units</span>
+        <span id="runwayMax"></span>
+      </div>
+      <div class="cvp-runway" id="runway"></div>
+      <div class="runway-note" id="runwayNote"></div>
+    </div>
+
+    <div class="cvp-panel">
+      <div class="cvp-panel-title">Cost-Volume-Profit Chart</div>
+      <div class="chart-wrap"><canvas id="cvpChart"></canvas></div>
+    </div>
+
+    <div class="cvp-panel">
+      <div class="cvp-panel-title">Sensitivity Analysis — Break-even vs. ±10% price / variable cost</div>
+      <table class="cvp-table">
+        <thead>
+          <tr>
+            <th>Scenario</th><th>Price</th><th>Variable cost</th><th>CM / unit</th>
+            <th>CM ratio</th><th>Break-even units</th><th>Δ vs base</th><th>Break-even sales</th>
+          </tr>
+        </thead>
+        <tbody id="sensitivityBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt$ = (n) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const fmtN = (n) => Number.isFinite(n) ? Math.round(n).toLocaleString('en-US') : '—';
+const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
+
+const ids = ['price','vc','fixed','volume','taxRate','targetProfit','maxUnits'];
+let chart;
+
+function getInputs() {
+  return {
+    price: parseFloat(document.getElementById('price').value) || 0,
+    vc: parseFloat(document.getElementById('vc').value) || 0,
+    fixed: parseFloat(document.getElementById('fixed').value) || 0,
+    volume: parseFloat(document.getElementById('volume').value) || 0,
+    taxRate: parseFloat(document.getElementById('taxRate').value) || 0,
+    targetProfit: parseFloat(document.getElementById('targetProfit').value) || 0,
+    maxUnits: parseFloat(document.getElementById('maxUnits').value) || 0,
+  };
+}
+
+function scenario(price, vc, fixed) {
+  const cm = price - vc;
+  const bepUnits = cm > 0 ? fixed / cm : Infinity;
+  return { price, vc, cm, cmRatio: price > 0 ? cm / price : 0, bepUnits, bepSales: bepUnits * price };
+}
+
+function metricCard(label, value, sub, tone) {
+  return `<div class="cvp-metric ${tone ? 'tone-' + tone : ''}">
+    <div class="cvp-metric-label">${label}</div>
+    <div class="cvp-metric-value">${value}</div>
+    ${sub ? `<div class="cvp-metric-sub">${sub}</div>` : ''}
+  </div>`;
+}
+
+function render() {
+  const { price, vc, fixed, volume, taxRate, targetProfit, maxUnits } = getInputs();
+
+  const cm = price - vc;
+  const cmRatio = price > 0 ? cm / price : 0;
+  const bepUnits = cm > 0 ? fixed / cm : Infinity;
+  const bepSales = bepUnits * price;
+  const mosUnits = volume - bepUnits;
+  const mosValue = mosUnits * price;
+  const mosPct = volume > 0 ? mosUnits / volume : 0;
+
+  const taxFrac = Math.min(Math.max(taxRate, 0), 99) / 100;
+  const preTaxTarget = taxFrac > 0 ? targetProfit / (1 - taxFrac) : targetProfit;
+  const targetUnits = cm > 0 ? (fixed + preTaxTarget) / cm : Infinity;
+  const targetSales = targetUnits * price;
+
+  const preTaxProfitAtVol = volume * cm - fixed;
+  const afterTaxProfitAtVol = preTaxProfitAtVol * (1 - taxFrac);
+
+  document.getElementById('headerNote').textContent =
+    `Contribution margin ${fmtPct(cmRatio)} · Break-even ${fmtN(bepUnits)} units`;
+
+  document.getElementById('metrics').innerHTML =
+    metricCard('Contribution margin / unit', fmt$(cm), `Ratio ${fmtPct(cmRatio)}`, 'mint') +
+    metricCard('Break-even (units)', fmtN(bepUnits), `${fmt$(bepSales)} in sales`, 'amber') +
+    metricCard('Margin of safety', fmtN(mosUnits), `${fmt$(mosValue)} · ${fmtPct(mosPct)}`, mosUnits >= 0 ? 'mint' : 'rose') +
+    metricCard(`Units for ${fmt$(targetProfit)} target profit`, fmtN(targetUnits), `${fmt$(targetSales)} in sales · pre-tax ${fmt$(preTaxTarget)}`) +
+    metricCard('Profit at expected volume', fmt$(afterTaxProfitAtVol), `Pre-tax ${fmt$(preTaxProfitAtVol)}`, afterTaxProfitAtVol >= 0 ? 'mint' : 'rose');
+
+  // Runway
+  const span = Math.max(volume, bepUnits, 1) * 1.15;
+  const bepPct = Math.min((bepUnits / span) * 100, 100);
+  const volPct = Math.min((volume / span) * 100, 100);
+  document.getElementById('runwayMax').textContent = `${fmtN(span)} units`;
+  document.getElementById('runway').style.background =
+    `linear-gradient(90deg, var(--rose) 0%, var(--rose) ${bepPct}%, var(--mint) ${bepPct}%, var(--mint) 100%)`;
+  document.getElementById('runway').innerHTML = `
+    <div class="cvp-runway-marker" style="left:${bepPct}%"><span class="cvp-runway-marker-label">BEP ${fmtN(bepUnits)}</span></div>
+    <div class="cvp-runway-marker" style="left:${volPct}%; background:#fff; opacity:0.6"><span class="cvp-runway-marker-label" style="top:40px">Expected ${fmtN(volume)}</span></div>
+  `;
+  document.getElementById('runwayNote').textContent = volume >= bepUnits
+    ? `Expected volume clears break-even by ${fmtN(mosUnits)} units (${fmtPct(mosPct)} margin of safety).`
+    : `Expected volume falls short of break-even by ${fmtN(-mosUnits)} units.`;
+
+  // Sensitivity table
+  const scenarios = [
+    { label: 'Base case', ...scenario(price, vc, fixed) },
+    { label: 'Price −10%', ...scenario(price * 0.9, vc, fixed) },
+    { label: 'Price +10%', ...scenario(price * 1.1, vc, fixed) },
+    { label: 'Variable cost −10%', ...scenario(price, vc * 0.9, fixed) },
+    { label: 'Variable cost +10%', ...scenario(price, vc * 1.1, fixed) },
+  ];
+  const baseBep = scenarios[0].bepUnits;
+  document.getElementById('sensitivityBody').innerHTML = scenarios.map((s, i) => {
+    const delta = s.bepUnits - baseBep;
+    const deltaTxt = i === 0 ? '—' : `${delta > 0 ? '+' : ''}${fmtN(delta)}`;
+    const deltaClass = delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : '';
+    return `<tr class="${i === 0 ? 'base' : ''}">
+      <td>${s.label}</td><td>${fmt$(s.price)}</td><td>${fmt$(s.vc)}</td>
+      <td>${fmt$(s.cm)}</td><td>${fmtPct(s.cmRatio)}</td><td>${fmtN(s.bepUnits)}</td>
+      <td class="${deltaClass}">${deltaTxt}</td><td>${fmt$(s.bepSales)}</td>
+    </tr>`;
+  }).join('');
+
+  // Chart
+  const points = 40;
+  const labels = [];
+  const revenue = [];
+  const totalCost = [];
+  for (let i = 0; i <= points; i++) {
+    const x = Math.round((maxUnits / points) * i);
+    labels.push(x);
+    revenue.push(x * price);
+    totalCost.push(fixed + x * vc);
+  }
+
+  const ctx = document.getElementById('cvpChart').getContext('2d');
+  const datasets = [
+    { label: 'Total revenue', data: revenue, borderColor: '#4FD1AE', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.15 },
+    { label: 'Total cost', data: totalCost, borderColor: '#E8607A', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.15 },
+    { label: 'Fixed cost', data: labels.map(() => fixed), borderColor: '#E8A33D', backgroundColor: 'transparent', borderWidth: 1, borderDash: [3, 3], pointRadius: 0 },
+  ];
+
+  if (Number.isFinite(bepUnits) && bepUnits <= maxUnits) {
+    const maxY = Math.max(...revenue, ...totalCost);
+    datasets.push({
+      label: 'Break-even',
+      data: labels.map((x) => (Math.abs(x - Math.round(bepUnits / (maxUnits / points)) * (maxUnits / points)) < (maxUnits / points) ? maxY : null)),
+      borderColor: '#E8A33D',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderDash: [5, 5],
+      pointRadius: 0,
+      spanGaps: false,
+    });
+  }
+
+  const config = {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: '#EDEFF3', font: { family: 'Inter', size: 12 } } },
+        tooltip: {
+          backgroundColor: '#1C2735',
+          borderColor: '#2B3646',
+          borderWidth: 1,
+          titleFont: { family: 'IBM Plex Mono', size: 12 },
+          bodyFont: { family: 'IBM Plex Mono', size: 12 },
+          callbacks: {
+            title: (items) => `${fmtN(items[0].label)} units`,
+            label: (item) => `${item.dataset.label}: ${fmt$(item.raw)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8A93A3', font: { family: 'IBM Plex Mono', size: 11 }, maxTicksLimit: 8, callback: (v, i) => fmtN(labels[i]) },
+          grid: { color: '#2B3646' },
+          title: { display: true, text: 'Units sold', color: '#8A93A3', font: { size: 11 } },
+        },
+        y: {
+          ticks: { color: '#8A93A3', font: { family: 'IBM Plex Mono', size: 11 }, callback: (v) => fmt$(v) },
+          grid: { color: '#2B3646' },
+        },
+      },
+    },
+  };
+
+  if (chart) {
+    chart.data = config.data;
+    chart.update();
+  } else {
+    chart = new Chart(ctx, config);
+  }
+}
+
+ids.forEach((id) => document.getElementById(id).addEventListener('input', render));
+document.getElementById('companyName').addEventListener('input', () => {});
+
+render();
+</script>
+</body>
+</html>
